@@ -1,0 +1,14 @@
+# Latex
+*.log
+*.aux
+*.out
+*.pdf
+
+# C/C++
+*.o
+*.out
+*.png
+*.perf
+
+# Vim
+*.swp
