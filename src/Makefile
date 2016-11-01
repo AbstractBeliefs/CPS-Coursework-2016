@@ -7,14 +7,16 @@ EXECUTABLES = $(SOURCES:.cpp=.out)
 TIME_PROFILES = $(EXECUTABLES:.out=.csv)
 PERF_PROFILES = $(EXECUTABLES:.out=.perf)
 CALLGRAPHS = $(PERF_PROFILES:.perf=.callgraph.png)
+FLAMEGRAPHS = $(PERF_PROFILES:.perf=.flamegraph.svg)
 
 all: profiling
-profiling: $(CALLGRAPHS) $(TIME_PROFILES)
+profiling: $(CALLGRAPHS) $(FLAMEGRAPHS) $(TIME_PROFILES)
 
 clean:
 	rm -f *.out
 	rm -f *.png
 	rm -f *.csv
+	rm -f *.svg
 
 %.out: %.cpp
 	$(CXX) $< $(CXXFLAGS) -o $@
@@ -27,5 +29,8 @@ clean:
 
 %.callgraph.png: %.perf
 	perf script -i $< | c++filt | gprof2dot -f perf | dot -Tpng -o $@
+
+%.flamegraph.svg: %.perf
+	perf script -i $< | stackcollapse-perf.pl | flamegraph.pl > $@
 
 .PHONY: all profiling clean
