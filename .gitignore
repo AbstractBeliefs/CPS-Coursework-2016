@@ -13,6 +13,7 @@
 *.png
 *.svg
 *.perf
+palette.map
 
 # Vim
 *.swp

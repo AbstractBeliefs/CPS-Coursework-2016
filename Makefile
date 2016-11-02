@@ -7,7 +7,7 @@ EXECUTABLES = $(SOURCES:.cpp=.out)
 TIME_PROFILES = $(EXECUTABLES:.out=.csv)
 PERF_PROFILES = $(EXECUTABLES:.out=.perf)
 CALLGRAPHS = $(PERF_PROFILES:.perf=.callgraph.png)
-FLAMEGRAPHS = $(PERF_PROFILES:.perf=.flamegraph.svg)
+FLAMEGRAPHS = $(PERF_PROFILES:.perf=.flamegraph.png)
 
 REPORT = report/report.pdf
 REPORT_SOURCE = report/report.tex
@@ -21,6 +21,7 @@ clean:
 	rm -f src/*.png
 	rm -f src/*.csv
 	rm -f src/*.svg
+	rm -f src/*.perf
 	rm -f report/*.log
 	rm -f report/*.aux
 	rm -f report/*.out
@@ -39,11 +40,12 @@ clean:
 %.callgraph.png: %.perf
 	perf script -i $< | c++filt | gprof2dot -f perf | dot -Tpng -o $@
 
-%.flamegraph.svg: %.perf
-	perf script -i $< | stackcollapse-perf.pl | flamegraph.pl > $@
+%.flamegraph.png: %.perf
+	perf script -i $< | stackcollapse-perf.pl | flamegraph.pl --cp --title=$< | convert svg:- $@
 
 REPORT: $(REPORT_SOURCE) $(REPORT_IMAGES)
 	pdflatex --output-directory=report $<
 	pdflatex --output-directory=report $<
 
 .PHONY: all profiling clean
+.PRECIOUS: %.perf %.csv
