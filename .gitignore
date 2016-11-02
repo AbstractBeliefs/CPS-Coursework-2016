@@ -3,6 +3,7 @@
 *.aux
 *.out
 *.pdf
+*.toc
 
 # C/C++
 *.o
