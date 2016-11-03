@@ -10,8 +10,8 @@ CALLGRAPHS = $(PERF_PROFILES:.perf=.callgraph.png)
 FLAMEGRAPHS = $(PERF_PROFILES:.perf=.flamegraph.png)
 
 REPORT = report/report.pdf
-REPORT_SOURCE = report/report.tex
-REPORT_IMAGES = 
+REPORT_SOURCE = report/report.tex report/report.bib
+REPORT_IMAGES = src/main.flamegraph.png src/main.callgraph.png
 
 all: profiling
 profiling: $(CALLGRAPHS) $(FLAMEGRAPHS) $(TIME_PROFILES)
@@ -27,6 +27,8 @@ clean:
 	rm -f report/*.out
 	rm -f report/*.toc
 	rm -f report/*.pdf
+	rm -f report/*.bbl
+	rm -f report/*.blg
 
 %.out: %.cpp
 	$(CXX) $< $(CXXFLAGS) -o $@
@@ -44,6 +46,9 @@ clean:
 	perf script -i $< | stackcollapse-perf.pl | flamegraph.pl --cp --title=$< | convert svg:- $@
 
 REPORT: $(REPORT_SOURCE) $(REPORT_IMAGES)
+	pdflatex --output-directory=report $<
+	export BIBINPUTS=report
+	bibtex $(basename $<)
 	pdflatex --output-directory=report $<
 	pdflatex --output-directory=report $<
 

@@ -39,18 +39,117 @@
     \tableofcontents
 
     \section{Introduction}
+    This coursework aims to investigate the performance of a given reference program, and to evaluate and compare
+    different concurrent and parallel strategies used to improve this performance.
+
         \subsection{Hardware}
+        There were two sets of hardware used to develop and test the software throughout the project. They consisted
+        of a development machine used to develop speedup strategies, and a test machine used for final benchmarking.
+
+            \subsubsection{Development}
+            The development machine is a general purpose compute server, running as a virtual machine. The spec is as
+            follows:
+            \begin{itemize}
+                \item 4$\times$ Intel(R) Xeon(R) CPU E3-1245 V2 @ 3.40GHz (virtualised)
+                \item 24GB DDR3 RAM (virtualised)
+                \item Debian Linux, ``Jessie'' (Linux main 3.16-3-amd64 \#1 SMP Debian 3.16.5-1 (2014-10-10) x86\_64 GNU/Linux)
+            \end{itemize}
 
     \section{Methodology}
+    Initially, time was spent in building up a set of benchmarks and profiling scripts that could be run against both
+    the original, sequential program as well as any updated versions. The results of these benchmarks were used to both
+    direct the improvement effort and also compare the eventual outcome of these improvements.
+
+    These benchmarks came in two forms: profiling artifacts, and execution time benchmarks. The execution time 
+    benchmarks are simply recordings of the time, on average, it takes each program variant to run. These benchmarks
+    are used to identify the relative performance and the efficacy of each speedup strategy. Profiling is used to
+    identify where time is spent in each variant, which can help in guiding where the programmer should spend their
+    time and effort to improve performance.
+    
+    To generate profiling information, compiled executables are executed with the \texttt{perf} tool, which
+    periodically halts and samples the current stack. These samples are later converted into flame graphs and call
+    graphs. Each of these show, in essence, the same information, but in different formats that make understanding the
+    flow of the program easier. Flame graphs show easily the depth of stacks, and how much time is spent in each
+    function in the stack. Call graphs show caller and callee information, and also contain more numerical data about
+    the runtime of each function and it's children to help back up the more intuitive interpretation of flame graphs.
+
+    To generate runtime benchmarks, compiled executables are executed with the \texttt{time} tool, which records the
+    amount of time a program runs in usermode, waiting for system calls in kernel mode, and also the wall clock time.
+    In this instance, 100 iterations are executed and their wall clock times recorded. The runtimes are sorted and
+    the fastest and slowest 5 runtimes are discarded. The 90 remaining execution times are then averaged to find the
+    average execution time suitable for comparison with other program variants.
+
         \subsection{OpenMP}
+        OpenMP is an API designed for multi-platform parallel programming in C/C++ (and Fortran) \cite{OpenMP}.
+        OpenMP can improve program performance by allowing the programmer to easily parallelise certain situations
+        with a simply, high level threading API. For example, certain \texttt{for} loops, as identified by the
+        programmer, can be parallelised with the addition of a simple \texttt{\#pragma omp parallel for}.
+
+        While this is one of the simpler cases in which OpenMP can be used, there are several configurables and
+        constructs that can be used to more precisely control how data is applied to these threads. However, in this
+        work we will focus mainly on scheduling.
+
+        The OpenMP 4.0 standard \cite{OpenMP40Std} supports 4 kinds of schedule, with an additional \texttt{auto}
+        schedule keyword that delegates schedule selection to the compiler/runtime. They are as follows:
+
+            \subsubsection{\texttt{static} scheduling}
+            In this scheduling mode, the iterations are divided into chunks of a certain size, and these chunks are
+            assigned ahead of time to each thread until none remain.
+
+            \subsubsection{\texttt{dynamic} scheduling}
+            Similar to \texttt{static}, the iterations are divided into chunks of work. Instead of being pre-assigned,
+            however, these chunks are at runtime fed into a queue. Threads can then consume and work a chunk as they
+            are able. By default, chunks are single iterations, meaning that 4 threads will approximately consume 25
+            chunks each, however threads that are able to execute faster will consume more than slower threads,
+            better smoothing the load and improving thread utilisation.
+
+            \subsubsection{\texttt{guided} scheduling}
+            \texttt{guided} scheduling is based on \texttt{dynamic}, however, the chunk size is variable within a queue
+            to further improve performance by lowering overheads incurred by threads having to frequently pick new
+            chunks. By having large starting chunks, all threads can begin work on most of the iterations, and threads
+            that complete the fastest will later be able to pick smaller remaining chunks while slower threads catch
+            up.
+
+            \subsubsection{\texttt{runtime} and \texttt{auto} scheduling}
+            These scheduling modes allow delegation of actual scheduler selection to happen later - either by the
+            compiler/runtime (in the case of \texttt{auto}) or at runtime by reading the \texttt{OMP\_SCHEDULE} 
+            environment variable (in the case of \texttt{runtime}).
+
         \subsection{C++11 Threads}
+        Aside from OpenMP threading, an additional speedup strategy employed was the manual use of the threading API
+        made available in the C++11 standard. This API is a more general threading API that aims to fill the same role
+        as the preceding \texttt{pthread} API. Because of this, the API is more versatile, and can be used for more
+        varied tasks such in the traditional concurrency models rather than just parallelised speedups. This means that
+        using C++11 threads is both more complex, requiring manual thread creation, sync, and destruction, but also
+        more amenable to complex workloads that may require complex inter-thread interactions.
 
     \section{Results}
         \subsection{Sequential Reference Implementation}
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=\textwidth]{{src/main.flamegraph}.png}
+                \caption{Reference flame graph}
+            \end{figure}
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=\textwidth]{{src/main.callgraph}.png}
+                \caption{Reference call graph}
+            \end{figure}
+            Execution time: TODO % TODO
+
+            It can be seen immediately in the flame graph that most time is spent in \texttt{decode} and
+            \texttt{mutate}, and reading off the execution information from the call graph does indeed show that
+            while the main function spends 91\% of it's time waiting on the called function \texttt{update\_epoch},
+            which itself spends 62\% of it's runtime waiting on \texttt{mutate} and 12\% in \texttt{decode}.
+
+            As such, these will be the main speedup candidates.
+
         \subsection{OpenMP}
         \subsection{C++11 Threads}
 
     \section{Biblography}
+    \bibliographystyle{plain}
+    \bibliography{report}
 
     \section{Appendices}
 
