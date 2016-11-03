@@ -37,7 +37,7 @@ clean:
 	perf record -g --output $@ -- ./$< > /dev/null
 
 %.csv: %.out
-	python src/timeprofile.py $< $@ 15
+	python src/timeprofile.py $< $@ 100
 
 %.callgraph.png: %.perf
 	perf script -i $< | c++filt | gprof2dot -f perf | dot -Tpng -o $@
