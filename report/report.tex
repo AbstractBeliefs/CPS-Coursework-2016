@@ -31,7 +31,7 @@
         \begin{abstract}
             As part of Napier University's Concurrent and Parallel Systems class (SET10108), students were tasked to
             investigate and parallelise where possible a sample genetic algortihm. This document will cover one such
-            investigation, covering how it was investigated and how it proposed improved implementations perform in
+            investigation, covering how it was investigated and how proposed improved implementations perform in
             comparison to the original.
         \end{abstract}
     \end{titlepage}
@@ -43,17 +43,13 @@
     different concurrent and parallel strategies used to improve this performance.
 
         \subsection{Hardware}
-        There were two sets of hardware used to develop and test the software throughout the project. They consisted
-        of a development machine used to develop speedup strategies, and a test machine used for final benchmarking.
-
-            \subsubsection{Development}
-            The development machine is a general purpose compute server, running as a virtual machine. The spec is as
-            follows:
-            \begin{itemize}
-                \item 4$\times$ Intel(R) Xeon(R) CPU E3-1245 V2 @ 3.40GHz (virtualised)
-                \item 24GB DDR3 RAM (virtualised)
-                \item Debian Linux, ``Jessie'' (Linux main 3.16-3-amd64 \#1 SMP Debian 3.16.5-1 (2014-10-10) x86\_64 GNU/Linux)
-            \end{itemize}
+        The development machine is a general purpose compute server, running as a virtual machine. The spec is as
+        follows:
+        \begin{itemize}
+            \item 4$\times$ Intel(R) Xeon(R) CPU E3-1245 V2 @ 3.40GHz (virtualised)
+            \item 24GB DDR3 RAM (virtualised)
+            \item Debian Linux, ``Jessie'' (Linux main 3.16-3-amd64 \#1 SMP Debian 3.16.5-1 (2014-10-10) x86\_64 GNU/Linux)
+        \end{itemize}
 
     \section{Methodology}
     Initially, time was spent in building up a set of benchmarks and profiling scripts that could be run against both
@@ -89,8 +85,9 @@
         constructs that can be used to more precisely control how data is applied to these threads. However, in this
         work we will focus mainly on scheduling.
 
-        The OpenMP 4.0 standard \cite{OpenMP40Std} supports 4 kinds of schedule, with an additional \texttt{auto}
-        schedule keyword that delegates schedule selection to the compiler/runtime. They are as follows:
+        The OpenMP 4.0 standard \cite{OpenMP40Std} supports 3 kinds of schedule, with additional \texttt{auto} and
+        \texttt{runtime} schedule keyword that delegates schedule selection to the compiler/runtime. They are as
+        follows:
 
             \subsubsection{\texttt{static} scheduling}
             In this scheduling mode, the iterations are divided into chunks of a certain size, and these chunks are
@@ -135,18 +132,97 @@
                 \includegraphics[width=\textwidth]{{src/main.callgraph}.png}
                 \caption{Reference call graph}
             \end{figure}
-            Execution time: TODO % TODO
+            Execution time: 5.077s.
 
             It can be seen immediately in the flame graph that most time is spent in \texttt{decode} and
             \texttt{mutate}, and reading off the execution information from the call graph does indeed show that
             while the main function spends 91\% of it's time waiting on the called function \texttt{update\_epoch},
-            which itself spends 62\% of it's runtime waiting on \texttt{mutate} and 12\% in \texttt{decode}.
-
-            As such, these will be the main speedup candidates.
+            which mostly wraps \texttt{epoch} under source examination. \texttt{epoch} itself spends 62\% of it's
+            runtime waiting on \texttt{mutate}, so these will be our speedup candidates.
 
         \subsection{OpenMP}
-        \subsection{C++11 Threads}
+            The \texttt{epoch} and \texttt{mutate} functions were examined, and it was determined that directly
+            attempting to speed up \texttt{epoch} itself would be the best first attempt. With this is mind, the main
+            \texttt{for} loop was annotated with an OpenMP \texttt{parallel for} pragma. Running this alone with
+            default settings produced a non-trivial performance improvement, so this was maintained and now the task is
+            to identify the best settings.
 
+            The program was adjusted so that compile time flags could easily and quickly adjust the schedule type and
+            number of threads used by OpenMP. After running the OpenMP accelerated program with all schedule types and
+            thread counts 1, 2, 4, 6, and 8, the following results were obtained:
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=0.75\textwidth]{report/images/schedule_vs_threads.png}
+                \caption{Runtimes for various schedule type and thread count}
+            \end{figure}
+
+            \begin{minipage}{\textwidth}
+                \centering
+                \begin{tabular}{ c c c c c c }
+                    Schedule &     1 &     2 &     4 &     6 &     8 \\
+                    \hline
+                    \hline
+                    Static   & 4.945 & 2.972 & 1.993 & 2.362 & 2.088 \\
+                    Dynamic  & 4.962 & 2.964 & 1.960 & 2.091 & 2.112 \\
+                    Guided   & 4.952 & 2.967 & 1.962 & 2.096 & 2.120 \\
+                \end{tabular}
+            \end{minipage}
+            
+            From this, the best performing schedule and thread count settings for this machine were found to be 4
+            threads with \texttt{dynamic} scheduling. The average runtime was 1.960s.
+
+            It can be noted that thread counts above 4 are actually detrimental to performance: this is because the
+            hardware used to execute these tests has 4 hardware threads. As such, adding more threads beyond this
+            cannot increase performance, as threads now compete over the right to execute in silicon. Additionally, the
+            \texttt{guided} scheduler is outperformed by the \texttt{dynamic} scheduler in all multi-threaded cases.
+            This is because the overhead in the \texttt{guided} scheduler does not have any additional benefits in
+            cases where the load for the variois iterations is similar or the the same, but additional drawbacks.
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=0.5\textwidth]{report/images/sequential_vs_omp.png}
+                \caption{Runtimes for Sequential and OpenMP strategies}
+            \end{figure}
+
+            This resulted in an overall speed up of $ \frac{Sequential}{Parallel} = \frac{5.077}{1.960} = 2.59 $,
+            and efficiency of $ \frac{Speedup}{Workers} = \frac{2.59}{4} = 0.65 $.
+
+        \subsection{C++11 Threads}
+            Similarly to OpenMP, speedup candidates from analysis of sequential execution were considered, and
+            \texttt{epoch} was edited to spawn 4 threads to execute work. As expected, manual thread parallelisation
+            provided a significant speedup, though not as much as OpenMP, and more complex to develop.
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=0.5\textwidth]{report/images/sequential_vs_threading.png}
+                \caption{Runtimes for Sequential and Threading strategies}
+            \end{figure}
+
+            The manual application of C++11 threads resulted in an average runtime of 2.385s.
+            This results in a speedup of $ \frac{Sequential}{Parallel} = \frac{5.077}{2.385} = 2.13 $, and a resulting
+            efficiency of $ \frac{Speedup}{Workers} = \frac{2.13}{4} = 0.53 $
+
+        \subsection{Results Summary}
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=0.5\textwidth]{report/images/sequential_vs_all.png}
+                \caption{Runtimes for all Strategies}
+            \end{figure}
+
+            \begin{minipage}{\textwidth}
+                \centering
+                \begin{tabular} { c c c c }
+                    Strategy                    & Average Runtime & Speedup & Efficiency \\
+                    \hline
+                    \hline
+                    Sequential                  & 5.077           & -       & -          \\
+                    OpenMP (4 threads, dynamic) & 1.960           & 2.59    & 0.65       \\
+                    Manual C++11 threading      & 2.385           & 2.13    & 0.53       \\
+                \end{tabular}
+            \end{minipage}
+
+    \section{Conclusion}
     \section{Biblography}
     \bibliographystyle{plain}
     \bibliography{report}
