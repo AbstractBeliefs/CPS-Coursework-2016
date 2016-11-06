@@ -42,6 +42,9 @@
     This coursework aims to investigate the performance of a given reference program, and to evaluate and compare
     different concurrent and parallel strategies used to improve this performance.
 
+    An effort has been made to make this investigation reproducible: all data used is included in the submission. The
+    software used and written is available at \url{https://github.com/AbstractBeliefs/CPS-Coursework-2016/} .
+
         \subsection{Hardware}
         The development machine is a general purpose compute server, running as a virtual machine. The spec is as
         follows:
@@ -228,6 +231,12 @@
 
     It can be seen from the results that even simple edits to programs to include parallelisation can have significant
     wins, for example, very small changes to include OpenMP resulting in a speedup of over 2.5x.
+
+    Future work may include the evaluation of further strategies, such as the application of GPGPU technology, C++
+    futures, or distributed computing systems. Additionally, the current techniques could be investigated in further
+    depth by varying the tunable variables that drive the algorithm, such as population size, mutation rate, and number
+    of elite genomes and observing the performance response.
+
 
     \section{Biblography}
     \bibliographystyle{plain}
