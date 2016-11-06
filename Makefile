@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++14 -ggdb -fopenmp -lpthread -fno-omit-frame-pointer -O3
+override CXXFLAGS := -std=c++14 -ggdb -fopenmp -lpthread -fno-omit-frame-pointer -O3 $(CXXFLAGS)
 
 SOURCES = $(wildcard src/*.cpp)
 EXECUTABLES = $(SOURCES:.cpp=.out)
